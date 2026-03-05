@@ -56,7 +56,7 @@ export function ChatWindow() {
 
     try {
       // Prepare chat history for context
-      const chatHistory = messages
+      const chatHistory: Array<{ role: 'user' | 'assistant'; content: string }> = messages
         .filter((msg) => msg.content.length > 0 && !msg.isError)
         .map((msg) => ({
           role: msg.isAi ? 'assistant' : 'user',
