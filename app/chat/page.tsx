@@ -1,3 +1,5 @@
+'use client';
+
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Home } from 'lucide-react';
