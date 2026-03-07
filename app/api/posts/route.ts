@@ -1,7 +1,9 @@
 import { connectDB } from '@/lib/db';
 import { Post } from '@/models/Post';
-import { uploadImageToCloudinary } from '@/lib/uploads/cloudinary';
+import { uploadImageToCloudinary } from '../../../lib/uploads/cloudinary';
 import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
 
 export async function GET() {
   try {
@@ -43,7 +45,10 @@ export async function POST(request: NextRequest) {
       // Preferred: store hosted image URL from Cloudinary.
       // Fallback: preserve existing base64 behavior when Cloudinary is not configured/available.
       try {
-        image = await uploadImageToCloudinary(imageFile);
+        const bytes = await imageFile.arrayBuffer();
+        const base64 = Buffer.from(bytes).toString('base64');
+        const dataUri = `data:${imageFile.type};base64,${base64}`;
+        image = await uploadImageToCloudinary(dataUri);
       } catch (uploadError) {
         console.error('Cloudinary upload failed, falling back to base64:', uploadError);
         const bytes = await imageFile.arrayBuffer();
