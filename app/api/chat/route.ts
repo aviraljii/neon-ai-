@@ -282,8 +282,27 @@ Price comparison guidance:
 }
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return 'Unknown error';
+  if (!(error instanceof Error)) {
+    return 'Unknown error';
+  }
+
+  const message = error.message || 'Unknown error';
+  const cause = (error as Error & { cause?: unknown }).cause;
+  if (cause instanceof Error && cause.message) {
+    return `${message} (cause: ${cause.message})`;
+  }
+
+  if (cause && typeof cause === 'object') {
+    const networkCause = cause as { code?: string; errno?: string | number; syscall?: string };
+    const details = [networkCause.code, String(networkCause.errno ?? ''), networkCause.syscall]
+      .filter(Boolean)
+      .join(', ');
+    if (details) {
+      return `${message} (cause: ${details})`;
+    }
+  }
+
+  return message;
 }
 
 function getModelCandidates(): string[] {
@@ -303,6 +322,19 @@ function isModelAvailabilityError(message: string): boolean {
     text.includes('not found') ||
     text.includes('is not supported') ||
     (text.includes('model') && text.includes('not available'))
+  );
+}
+
+function isLikelyNetworkError(message: string): boolean {
+  const text = message.toLowerCase();
+  return (
+    text.includes('fetch failed') ||
+    text.includes('econnrefused') ||
+    text.includes('econnreset') ||
+    text.includes('enotfound') ||
+    text.includes('etimedout') ||
+    text.includes('certificate') ||
+    text.includes('self signed')
   );
 }
 
@@ -421,8 +453,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = getErrorMessage(error);
     console.error('Chat API error:', message);
+    const userFacingError = isLikelyNetworkError(message)
+      ? `Cannot reach Gemini API from the server. Check outbound internet/DNS/firewall/proxy and allow https://generativelanguage.googleapis.com. Details: ${message}`
+      : `Failed to generate response from Gemini: ${message}`;
     return NextResponse.json(
-      { success: false, response: '', error: `Failed to generate response from Gemini: ${message}` },
+      { success: false, response: '', error: userFacingError },
       { status: 500 }
     );
   }

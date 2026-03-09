@@ -21,7 +21,7 @@ export default function LandingPage() {
               variant="outline"
               className="border-border text-foreground hover:bg-muted bg-transparent"
             >
-              <Link href="/chat">Sign In</Link>
+              <Link href="/chat">Chat </Link>
             </Button>
             <Button
               asChild
