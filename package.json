@@ -49,7 +49,6 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "8.5.1",
     "express": "^4.22.1",
-    "groq-sdk": "^0.37.0",
     "input-otp": "1.4.1",
     "lucide-react": "^0.544.0",
     "mongoose": "^8.0.0",
