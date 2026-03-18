@@ -325,6 +325,20 @@ function isModelAvailabilityError(message: string): boolean {
   );
 }
 
+function isTransientModelError(message: string): boolean {
+  const text = message.toLowerCase();
+  return (
+    text.includes('503') ||
+    text.includes('service unavailable') ||
+    text.includes('high demand') ||
+    text.includes('overloaded') ||
+    text.includes('temporarily unavailable') ||
+    text.includes('429') ||
+    text.includes('rate limit') ||
+    text.includes('quota exceeded')
+  );
+}
+
 function isLikelyNetworkError(message: string): boolean {
   const text = message.toLowerCase();
   return (
@@ -409,7 +423,7 @@ export async function POST(request: NextRequest) {
 
     let responseText = '';
     let selectedModel = '';
-    const modelErrors: string[] = [];
+    const modelErrors: Array<{ model: string; message: string; kind: 'availability' | 'transient' }> = [];
     const candidates = getModelCandidates();
 
     for (const modelName of candidates) {
@@ -433,16 +447,25 @@ export async function POST(request: NextRequest) {
         break;
       } catch (error) {
         const message = getErrorMessage(error);
-        modelErrors.push(`${modelName}: ${message}`);
-
-        if (!isModelAvailabilityError(message)) {
-          throw new Error(message);
+        if (isModelAvailabilityError(message)) {
+          modelErrors.push({ model: modelName, message, kind: 'availability' });
+          continue;
         }
+        if (isTransientModelError(message)) {
+          modelErrors.push({ model: modelName, message, kind: 'transient' });
+          continue;
+        }
+        throw new Error(message);
       }
     }
 
     if (!selectedModel) {
-      throw new Error(`All configured Gemini models failed. ${modelErrors.join(' | ')}`);
+      const hasTransient = modelErrors.some((error) => error.kind === 'transient');
+      if (hasTransient) {
+        throw new Error('AI service is temporarily unavailable. Please try again later.');
+      }
+      const details = modelErrors.map((error) => `${error.model}: ${error.message}`).join(' | ');
+      throw new Error(`All configured Gemini models failed. ${details}`);
     }
 
     return NextResponse.json({
@@ -455,10 +478,12 @@ export async function POST(request: NextRequest) {
     console.error('Chat API error:', message);
     const userFacingError = isLikelyNetworkError(message)
       ? `Cannot reach Gemini API from the server. Check outbound internet/DNS/firewall/proxy and allow https://generativelanguage.googleapis.com. Details: ${message}`
-      : `Failed to generate response from Gemini: ${message}`;
+      : message.includes('AI service is temporarily unavailable')
+        ? message
+        : `Failed to generate response from Gemini: ${message}`;
     return NextResponse.json(
       { success: false, response: '', error: userFacingError },
-      { status: 500 }
+      { status: userFacingError.includes('temporarily unavailable') ? 503 : 500 }
     );
   }
 }
