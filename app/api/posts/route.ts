@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/db';
 import { Post } from '@/models/Post';
-import { uploadImageToCloudinary } from '../../../lib/upload/cloudinary';
+import { uploadImageToCloudinary } from '@/lib/upload/cloudinary';
+
 import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
